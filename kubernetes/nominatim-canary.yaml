@@ -1,21 +1,12 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: nominatim
-spec:
-  ports:
-  - port: 80
-    targetPort: 8080
-    protocol: TCP
-  selector:
-    app: nominatim
----
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nominatim-canary
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: nominatim
   template:
     metadata:
       labels:
@@ -28,24 +19,17 @@ spec:
           secretName: nominatim-storage-secret
       containers:
       - name: nominatim-k8s
-        image: peterevans/nominatim-k8s:latest
+        image: unifon/nominatim-k8s:latest
         env:
         - name: NOMINATIM_MODE
           value: CREATE
         - name: NOMINATIM_PBF_URL
-          value: "http://download.geofabrik.de/asia/maldives-latest.osm.pbf"
+          value: "http://download.geofabrik.de/europe/norway-latest.osm.pbf"
         - name: NOMINATIM_DATA_LABEL
-          value: maldives-20161213
-        - name: NOMINATIM_SA_KEY_PATH
-          value: "/etc/nominatim-secret-volume/service-account-key.json"
-        - name: NOMINATIM_PROJECT_ID
-          value: my-project
-        - name: NOMINATIM_GS_BUCKET
-          value: "gs://my-bucket"
+          value: norway-20201027
         volumeMounts:
-        - name: nominatim-secret-volume
-          readOnly: true
-          mountPath: /etc/nominatim-secret-volume
+        - name: azure
+          mountPath: /mnt/azure
         ports:
         - containerPort: 8080
         readinessProbe:
@@ -54,3 +38,9 @@ spec:
             port: 8080
           initialDelaySeconds: 30
           timeoutSeconds: 1
+      volumes:
+      - name: azure
+        azureFile:
+          secretName: azure-storage-secret
+          shareName: storeobelixgermany
+          readOnly: false
