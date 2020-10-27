@@ -8,12 +8,9 @@ fi
 # Defaults
 NOMINATIM_DATA_PATH=${NOMINATIM_DATA_PATH:="/srv/nominatim/data"}
 NOMINATIM_DATA_LABEL=${NOMINATIM_DATA_LABEL:="data"}
-NOMINATIM_PBF_URL=${NOMINATIM_PBF_URL:="http://download.geofabrik.de/asia/maldives-latest.osm.pbf"}
+NOMINATIM_PBF_URL=${NOMINATIM_PBF_URL:="http://download.geofabrik.de/europe/norway-latest.osm.pbf"}
 NOMINATIM_POSTGRESQL_DATA_PATH=${NOMINATIM_POSTGRESQL_DATA_PATH:="/var/lib/postgresql/9.5/main"}
-# Google Storage variables
-NOMINATIM_SA_KEY_PATH=${NOMINATIM_SA_KEY_PATH:=""}
-NOMINATIM_PROJECT_ID=${NOMINATIM_PROJECT_ID:=""}
-NOMINATIM_GS_BUCKET=${NOMINATIM_GS_BUCKET:=""}
+
 NOMINATIM_PG_THREADS=${NOMINATIM_PG_THREADS:=2}
 
 if [ "$NOMINATIM_MODE" == "CREATE" ]; then
@@ -33,50 +30,35 @@ if [ "$NOMINATIM_MODE" == "CREATE" ]; then
     useradd -m -p password1234 nominatim
     sudo -u nominatim /srv/nominatim/build/utils/setup.php --osm-file $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.osm.pbf --all --threads $NOMINATIM_PG_THREADS
 
-    if [ -n "$NOMINATIM_SA_KEY_PATH" ] && [ -n "$NOMINATIM_PROJECT_ID" ] && [ -n "$NOMINATIM_GS_BUCKET" ]; then
 
-        # Stop PostgreSQL
-        service postgresql stop
+    # Stop PostgreSQL
+    service postgresql stop
 
-        # Archive PostgreSQL data
-        tar cz $NOMINATIM_POSTGRESQL_DATA_PATH | split -b 1024MiB - $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_
+    # Archive PostgreSQL data
+    tar cz $NOMINATIM_POSTGRESQL_DATA_PATH | split -b 1024MiB - $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_
 
-        # Activate the service account to access storage
-        gcloud auth activate-service-account --key-file $NOMINATIM_SA_KEY_PATH
-        # Set the Google Cloud project ID
-        gcloud config set project $NOMINATIM_PROJECT_ID
+    cp -R $NOMINATIM_DATA_PATH/*.tgz* /mnt/azure/$NOMINATIM_DATA_LABEL
 
-        # Copy the archive to storage
-        gsutil -m cp $NOMINATIM_DATA_PATH/*.tgz* $NOMINATIM_GS_BUCKET/$NOMINATIM_DATA_LABEL
+    # Start PostgreSQL
+    service postgresql start
 
-        # Start PostgreSQL
-        service postgresql start
-
-    fi
 
 else
 
-    if [ -n "$NOMINATIM_SA_KEY_PATH" ] && [ -n "$NOMINATIM_PROJECT_ID" ] && [ -n "$NOMINATIM_GS_BUCKET" ]; then
+    # Copy the archive from storage
+    mkdir -p $NOMINATIM_DATA_PATH
+    #gsutil -m cp $NOMINATIM_GS_BUCKET/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+    cp -R /mnt/azure/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
 
-        # Activate the service account to access storage
-        gcloud auth activate-service-account --key-file $NOMINATIM_SA_KEY_PATH
-        # Set the Google Cloud project ID
-        gcloud config set project $NOMINATIM_PROJECT_ID
+    # Remove any files present in the target directory
+    rm -rf ${NOMINATIM_POSTGRESQL_DATA_PATH:?}/*
 
-        # Copy the archive from storage
-        mkdir -p $NOMINATIM_DATA_PATH
-        gsutil -m cp $NOMINATIM_GS_BUCKET/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+    # Extract the archive
+    cat $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_* | tar xz -C $NOMINATIM_POSTGRESQL_DATA_PATH --strip-components=5
 
-        # Remove any files present in the target directory
-        rm -rf ${NOMINATIM_POSTGRESQL_DATA_PATH:?}/*
+    # Start PostgreSQL
+    service postgresql start
 
-        # Extract the archive
-        cat $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_* | tar xz -C $NOMINATIM_POSTGRESQL_DATA_PATH --strip-components=5
-
-        # Start PostgreSQL
-        service postgresql start
-
-    fi
 
 fi
 
