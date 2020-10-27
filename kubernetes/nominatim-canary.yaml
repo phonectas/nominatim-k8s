@@ -19,7 +19,7 @@ spec:
           secretName: nominatim-storage-secret
       containers:
       - name: nominatim-k8s
-        image: unifon/nominatim-k8s:latest
+        image: unifon/nominatim-k8s:v1.0.0
         env:
         - name: NOMINATIM_MODE
           value: CREATE
@@ -42,5 +42,5 @@ spec:
       - name: azure
         azureFile:
           secretName: azure-storage-secret
-          shareName: storeobelixgermany
+          shareName: azure
           readOnly: false
