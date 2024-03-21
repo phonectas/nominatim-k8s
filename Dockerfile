@@ -30,7 +30,7 @@ RUN apt-get -y update \
 
 # Build Nominatim
 RUN cd /srv \
- && curl --silent -L http://www.nominatim.org/release/Nominatim-${nominatim_version}.tar.bz2 -o v${nominatim_version}.tar.bz2 \
+ && curl --silent --insecure -L http://www.nominatim.org/release/Nominatim-${nominatim_version}.tar.bz2 -o v${nominatim_version}.tar.bz2 \
  && tar xf v${nominatim_version}.tar.bz2 \
  && rm v${nominatim_version}.tar.bz2 \
  && mv Nominatim-${nominatim_version} nominatim \
@@ -80,10 +80,13 @@ RUN apt-get -y update \
     python3-psycopg2 \
     curl \
     ca-certificates \
+    openssh-client \
     sudo \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \
  && rm -rf /tmp/* /var/tmp/*
+
+RUN mkdir -p /scpkey
 
 # Copy the application from the builder image
 COPY --from=builder /srv/nominatim /srv/nominatim

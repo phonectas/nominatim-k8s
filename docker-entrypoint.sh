@@ -47,9 +47,16 @@ if [ "$NOMINATIM_MODE" == "CREATE" ]; then
         tar cz $NOMINATIM_POSTGRESQL_DATA_PATH | split -b 1024MiB - $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_
 
         if [ -n "$NOMINATIM_STORAGE_PATH" ] ; then
-            mkdir $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL
+            if [[ "$NOMINATIM_STORAGE_PATH" == *"@"* ]]; then
+                mkdir $NOMINATIM_DATA_LABEL
+                scp -i /scpkey/scpkey -r -o StrictHostKeyChecking=no $NOMINATIM_DATA_LABEL $NOMINATIM_STORAGE_PATH/
+                scp -i /scpkey/scpkey -o StrictHostKeyChecking=no $NOMINATIM_DATA_PATH/*.tgz* $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL
+            else
+                mkdir $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL
+                cp $NOMINATIM_DATA_PATH/*.tgz* $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL
+            fi
 
-            cp $NOMINATIM_DATA_PATH/*.tgz* $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL
+            exit 0
         else
             # Activate the service account to access storage
             gcloud auth activate-service-account --key-file $NOMINATIM_SA_KEY_PATH
@@ -70,7 +77,11 @@ else
         # Copy the archive from storage
         mkdir -p $NOMINATIM_DATA_PATH
         if [ -n "$NOMINATIM_STORAGE_PATH" ] ; then
-            cp $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+            if [[ "$NOMINATIM_STORAGE_PATH" == *"@"* ]]; then
+                scp -i /scpkey/scpkey -o StrictHostKeyChecking=no $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+            else
+                cp $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+            fi
         else
             # Activate the service account to access storage
             gcloud auth activate-service-account --key-file $NOMINATIM_SA_KEY_PATH
