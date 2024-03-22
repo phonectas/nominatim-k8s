@@ -2,7 +2,7 @@
 
 if [ "$NOMINATIM_MODE" != "CREATE" ] && [ "$NOMINATIM_MODE" != "RESTORE" ]; then
     # Default to CREATE
-    NOMINATIM_MODE="CREATE"
+    NOMINATIM_MODE="RESTORE"
 fi
 
 # Defaults
