@@ -74,28 +74,32 @@ if [ "$NOMINATIM_MODE" == "CREATE" ]; then
 else
 
     if ( [ -n "$NOMINATIM_SA_KEY_PATH" ] && [ -n "$NOMINATIM_PROJECT_ID" ] && [ -n "$NOMINATIM_GS_BUCKET" ] ) || [ -n "$NOMINATIM_STORAGE_PATH" ] ; then
-        # Copy the archive from storage
-        mkdir -p $NOMINATIM_DATA_PATH
-        if [ -n "$NOMINATIM_STORAGE_PATH" ] ; then
-            if [[ "$NOMINATIM_STORAGE_PATH" == *"@"* ]]; then
-                scp -i /scpkey/scpkey -o StrictHostKeyChecking=no $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+        if [ ! -f $NOMINATIM_POSTGRESQL_DATA_PATH/restored ]; then
+            # Copy the archive from storage
+            mkdir -p $NOMINATIM_DATA_PATH
+            if [ -n "$NOMINATIM_STORAGE_PATH" ] ; then
+                if [[ "$NOMINATIM_STORAGE_PATH" == *"@"* ]]; then
+                    scp -i /scpkey/scpkey -o StrictHostKeyChecking=no $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+                else
+                    cp $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+                fi
             else
-                cp $NOMINATIM_STORAGE_PATH/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+                # Activate the service account to access storage
+                gcloud auth activate-service-account --key-file $NOMINATIM_SA_KEY_PATH
+                # Set the Google Cloud project ID
+                gcloud config set project $NOMINATIM_PROJECT_ID
+
+                gsutil -m cp $NOMINATIM_GS_BUCKET/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
             fi
-        else
-            # Activate the service account to access storage
-            gcloud auth activate-service-account --key-file $NOMINATIM_SA_KEY_PATH
-            # Set the Google Cloud project ID
-            gcloud config set project $NOMINATIM_PROJECT_ID
 
-            gsutil -m cp $NOMINATIM_GS_BUCKET/$NOMINATIM_DATA_LABEL/*.tgz* $NOMINATIM_DATA_PATH
+            # Remove any files present in the target directory
+            rm -rf ${NOMINATIM_POSTGRESQL_DATA_PATH:?}/*
+
+            # Extract the archive
+            cat $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_* | tar xz -C $NOMINATIM_POSTGRESQL_DATA_PATH --strip-components=5
+
+            touch $NOMINATIM_POSTGRESQL_DATA_PATH/restored
         fi
-
-        # Remove any files present in the target directory
-        rm -rf ${NOMINATIM_POSTGRESQL_DATA_PATH:?}/*
-
-        # Extract the archive
-        cat $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_* | tar xz -C $NOMINATIM_POSTGRESQL_DATA_PATH --strip-components=5
 
         # Start PostgreSQL
         service postgresql start
