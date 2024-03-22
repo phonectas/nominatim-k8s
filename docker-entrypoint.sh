@@ -99,6 +99,9 @@ else
             cat $NOMINATIM_DATA_PATH/$NOMINATIM_DATA_LABEL.tgz_* | tar xz -C $NOMINATIM_POSTGRESQL_DATA_PATH --strip-components=5
 
             touch $NOMINATIM_POSTGRESQL_DATA_PATH/restored
+
+            chown -R postgres /var/lib/postgresql
+            chmod -R 700 /var/lib/postgresql
         fi
 
         # Start PostgreSQL
